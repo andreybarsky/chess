@@ -243,6 +243,8 @@ def lookahead(board, depth=2, max_depth=2): # simulates all possible moves for b
 	elif depth == 0:
 		return evaluate(board)
 
+def negamax(board):
+	
 
 
 
