@@ -38,13 +38,15 @@ def string_to_square(string):
 
 class ChessBoard(wx.Frame):
     def __init__(self, parent, title):
-        self.engine = subprocess.Popen('./chess_engine2.py',
+        self.engine = subprocess.Popen('./carl.py',
                                        stdout=subprocess.PIPE, stdin=subprocess.PIPE,
                                        bufsize=0, universal_newlines=True)
-        self.engine.stdin.write('{"command": "newGame"}\n')
+        self.engine.stdin.write('{"command": "newGame", "humanCol": "white"}\n')
         self.engine.stdin.flush()
         self.activepiece = None
         self.winner = None
+        self.ai_plays = 'black'
+        self.whose_turn = 'white'
 
         self.filenames = {'wp': 'png/Chess_wpawn.png',
                           'bp': 'png/Chess_bpawn.png',
@@ -73,10 +75,15 @@ class ChessBoard(wx.Frame):
         # menu:
         filemenu = wx.Menu()
 
-        menuNewGame = filemenu.Append(wx.ID_ANY, "&New Game", "Clear the board and start again")
+        menuNewGameMP = filemenu.Append(wx.ID_ANY, "&New Game (Human vs Human)", "Clear the board and start again")
+        menuNewGameWhite = filemenu.Append(wx.ID_ANY, "&New Game (White vs Computer)", "Clear the board and start again")
+        menuNewGameBlack = filemenu.Append(wx.ID_ANY, "&New Game (Black vs Computer)", "Clear the board and start again")
         menuAbout = filemenu.Append(wx.ID_ABOUT, "&About", "Information about this program")
-        menuExit = filemenu.Append(wx.ID_EXIT, "E&xit", "Terminate the program")
         menuUndo = filemenu.Append(wx.ID_ANY, "&Undo", "Go back one move")
+        menuAIMove = filemenu.Append(wx.ID_ANY, "&AI Move", "AI makes the best move at this position")
+        menuExit = filemenu.Append(wx.ID_EXIT, "E&xit", "Terminate the program")
+
+
 
         menuBar = wx.MenuBar()
         menuBar.Append(filemenu, "&File")
@@ -84,8 +91,12 @@ class ChessBoard(wx.Frame):
 
         self.Bind(wx.EVT_MENU, self.OnAbout, menuAbout)
         self.Bind(wx.EVT_MENU, self.OnExit, menuExit)
-        self.Bind(wx.EVT_MENU, self.OnNewGame, menuNewGame)
+        self.Bind(wx.EVT_MENU, self.OnNewGameMP, menuNewGameMP)
+        self.Bind(wx.EVT_MENU, self.OnNewGameWhite, menuNewGameWhite)
+        self.Bind(wx.EVT_MENU, self.OnNewGameBlack, menuNewGameBlack)
         self.Bind(wx.EVT_MENU, self.OnRewind, menuUndo)
+        self.Bind(wx.EVT_MENU, self.OnAIMove, menuAIMove)
+
 
         self.chess_panel.Bind(wx.EVT_LEFT_DOWN, self.SquareClick)
         self.chess_panel.Bind(wx.EVT_RIGHT_DOWN, self.SquareRightClick)
@@ -116,7 +127,10 @@ class ChessBoard(wx.Frame):
             else:
                 self.DrawBoard(self.boardstate)
                 self.winner = jsondict['winner']
-                print "The winner is %s" % self.winner.capitalize()
+                dlg = wx.MessageDialog(self, "Game over: %s wins!" % self.winner.capitalize())
+                dlg.ShowModal()
+                dlg.Destroy()
+                self.DrawBoard(self.boardstate)
 #               dlg = wx.MessageDialog(self, "%s wins" % self.winner.capitalize())
 #               dlg.ShowModal()
 #               dlg.Destroy()
@@ -129,9 +143,13 @@ class ChessBoard(wx.Frame):
 
             self.HighlightSquares(squares_to_highlight)
             # self.HighlightMoves ?
-        elif message == 'gameOver':
-            self.winner = jsondict['winner']
-            print "%s wins" % self.winner.capitalize()
+#        elif message == 'gameOver':
+#            self.winner = jsondict['winner']
+#            dlg = wx.MessageDialog(self, "Game over: %s wins!" % self.winner.capitalize())
+#            dlg.ShowModal()
+#            dlg.Destroy()
+#            self.Close(True)
+            #print "%s wins" % self.winner.capitalize()
         elif message == 'console':
             print jsondict['statement']
 
@@ -170,6 +188,9 @@ class ChessBoard(wx.Frame):
                 self.activepiece = None
                 self.DrawBoard(self.boardstate)
                 self.engine.stdin.write(jsonstring)
+                # ai makes a move:
+                #if self.whose_turn == self.ai_plays:
+                #self.engine.stdin.write('{"command": "makeBestMove"}\n')
         else:
             print "Click detected at %s, but the game is over" % e.GetPosition()
 
@@ -220,15 +241,24 @@ class ChessBoard(wx.Frame):
         dlg = wx.MessageDialog(self, "chess ai, routinely loses")
         dlg.ShowModal()
         dlg.Destroy()
+        self.DrawBoard(self.boardstate)
+
 
     def OnExit(self, e):
         self.Close(True)
 
-    def OnNewGame(self, e):
-        self.engine.stdin.write('{"command": "newGame"}\n')
+    def OnNewGameMP(self, e):
+        self.engine.stdin.write('{"command": "newGame", "humanCol": "both"}\n')
+    def OnNewGameWhite(self, e):
+        self.engine.stdin.write('{"command": "newGame", "humanCol": "white"}\n')
+    def OnNewGameBlack(self, e):
+        self.engine.stdin.write('{"command": "newGame", "humanCol": "black"}\n')
 
     def OnRewind(self, e):
         self.engine.stdin.write('{"command": "rewind"}\n')
+
+    def OnAIMove(self, e):
+        self.engine.stdin.write('{"command": "makeBestMove"}\n')
 
 
 if __name__ == '__main__':
